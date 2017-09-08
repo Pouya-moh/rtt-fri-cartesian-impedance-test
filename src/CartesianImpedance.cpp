@@ -3,6 +3,48 @@
 #include <iostream>
 
 CartesianImpedance::CartesianImpedance(std::string const& name) : TaskContext(name){
+    initializePorts();
+    task = QuinticPolynomial<float>();
+    fin_pos = Eigen::Vector3f::Zero(3);
+    task_set = false;
+
+    addOperation("setCartesianPose", &CartesianImpedance::setCartPose, this, RTT::ClientThread)
+            .doc("Set desiered cartesian pose.")
+            .arg("position", "Desiered KDL::Position")
+            .arg("orientation", "Desiered KDL::orientation")
+            .arg("time", "Duration of task");
+
+    addOperation("setRedundancyRes", &CartesianImpedance::setRedRes, this, RTT::ClientThread)
+            .doc("Set a joint configuration as redundancy resolution scheme for testing.")
+            .arg("joint_vals","Desiered rstrt::kinematic::JointAngles configuration");
+}
+
+bool CartesianImpedance::setCartPose(KDL::Vector position, KDL::Rotation orientation, double duration){
+    // -----------------------final-------------------------
+    // orientation
+    double x2,y2,z2,w2;
+    orientation.GetQuaternion(x2,y2,z2,w2);
+    fin_rot = Eigen::Quaternionf(w2,x2,y2,z2);
+    fin_rot.normalize();
+    // position
+    fin_pos << position.x(), position.y(), position.z();
+    // -----------------------initial-----------------------
+    // orientation
+    double x1,y1,z1,w1; // not reusing the above ones because reasons!
+    cur_cart_pose_in_data.M.GetQuaternion(x1,y1,z1,w1);
+    init_rot = Eigen::Quaternionf(w1,x1,y1,z1);
+    // position
+    init_pos << cur_cart_pose_in_data.p.x(), cur_cart_pose_in_data.p.y(),cur_cart_pose_in_data.p.z();
+
+    // here orientaion would be done by slerp of Eigen and position by my quiuntic polynomial
+    start_time = time;
+    end_time   = start_time+duration;
+    task.setParams(start_time, end_time, init_pos, fin_pos);
+    task_set = true;
+}
+
+void CartesianImpedance::setRedRes(rstrt::kinematics::JointAngles joint_vals){
+    red_res_out_data = joint_vals;
 }
 
 bool CartesianImpedance::configureHook(){
@@ -14,6 +56,27 @@ bool CartesianImpedance::startHook(){
 }
 
 void CartesianImpedance::updateHook(){
+    time = 1E-9 * RTT::os::TimeService::ticks2nsecs(RTT::os::TimeService::Instance()->getTicks());
+	// read:
+    cur_cart_pose_in_flow = cur_cart_pose_in_port.read(cur_cart_pose_in_data);
+
+    // process:
+    cart_pose_loop_out_data = cur_cart_pose_in_data;
+
+    if(task_set){
+        intermed_pos = task.getQ(time);
+        // for readabilty:
+        double tau = (time-start_time)/(end_time-start_time);
+        double tt  = (6.0*std::pow(tau,5.0)-15.0*std::pow(tau,4.0)+10.0*std::pow(tau,3.0));
+        intermed_rot = init_rot.slerp(tt,fin_rot);
+        if (time >= end_time){
+            task_set = false;
+        }
+    }
+
+    // looping:
+    cart_pose_loop_out_port.write(cart_pose_loop_out_data);
+    red_res_out_port.write(red_res_out_data);
 }
 
 void CartesianImpedance::stopHook() {

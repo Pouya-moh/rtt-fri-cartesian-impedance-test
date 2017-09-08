@@ -5,6 +5,9 @@
 #include <rst-rt/kinematics/JointAngles.hpp>
 #include <rst-rt/dynamics/JointTorques.hpp>
 #include <kdl/frames.hpp>
+#include <QuinticPolynomial.hpp>
+
+#define DOF_SIZE 7
 
 class CartesianImpedance : public RTT::TaskContext{
 public:
@@ -14,6 +17,9 @@ public:
     void updateHook();
     void stopHook();
     void cleanupHook();
+
+    bool setCartPose(KDL::Vector position, KDL::Rotation orientation, double duration);
+    void setRedRes(rstrt::kinematics::JointAngles joint_vals);
 
 private:
     RTT::OutputPort<rstrt::kinematics::JointAngles> red_res_out_port;
@@ -30,5 +36,13 @@ private:
     KDL::Frame                 cur_cart_pose_in_data;
 
     void initializePorts();
+
+    // tasks:
+    QuinticPolynomial<float> task;
+    Eigen::Vector3f init_pos, fin_pos, intermed_pos;
+    Eigen::Quaternionf init_rot, fin_rot, intermed_rot;
+    double start_time, end_time;
+    double time;
+    bool task_set;
 };
 #endif
