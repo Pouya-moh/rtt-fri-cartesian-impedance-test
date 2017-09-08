@@ -60,8 +60,6 @@ void CartesianImpedance::updateHook(){
 	// read:
     cur_cart_pose_in_flow = cur_cart_pose_in_port.read(cur_cart_pose_in_data);
 
-    // process:
-    cart_pose_loop_out_data = cur_cart_pose_in_data;
 
     if(task_set){
         intermed_pos = task.getQ(time);
@@ -72,10 +70,17 @@ void CartesianImpedance::updateHook(){
         if (time >= end_time){
             task_set = false;
         }
+        cart_pose_out_data.p.data[0] = intermed_pos(0);
+        cart_pose_out_data.p.data[1] = intermed_pos(1);
+        cart_pose_out_data.p.data[2] = intermed_pos(2);
+        cart_pose_out_data.M = KDL::Rotation::Quaternion(intermed_rot.x(),intermed_rot.y(),intermed_rot.z(),intermed_rot.w());
+        cart_pose_out_port.write(cart_pose_out_data);
+    } else{
+        // looping:
+        // process:
+        cart_pose_loop_out_data = cur_cart_pose_in_data;
+        cart_pose_loop_out_port.write(cart_pose_loop_out_data);
     }
-
-    // looping:
-    cart_pose_loop_out_port.write(cart_pose_loop_out_data);
     red_res_out_port.write(red_res_out_data);
 }
 

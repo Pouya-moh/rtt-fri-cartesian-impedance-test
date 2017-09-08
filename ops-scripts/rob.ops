@@ -4,7 +4,7 @@ import("kdl_typekit")
 
 import("rtt-fri-cartesian-impedance")
 loadComponent("lwr","RttFriCartImpedCtrl")
-setActivity("lwr",0.001,HighestPriority,ORO_SCHED_RT)
+setActivity("lwr",0.002,HighestPriority,ORO_SCHED_RT)
 
 lwr.server_ip = "192.168.0.200"
 lwr.host_ip = "192.168.0.21"
@@ -12,3 +12,29 @@ lwr.port = 49938
 
 lwr.configure
 lwr.start
+
+var ConnPolicy cp
+
+var rstrt.kinematics.JointAngles resolution = rstrt.kinematics.JointAngles(7)
+resolution.angles[0] = 0.1
+resolution.angles[1] = 0.1
+resolution.angles[2] = 0.1
+resolution.angles[3] = 0.1
+resolution.angles[4] = 0.1
+resolution.angles[5] = 0.1
+resolution.angles[6] = 0.1
+
+import("rtt-fri-cartesian-impedance-test")
+loadComponent("test","CartesianImpedance")
+setActivity("test",0.002,HighestPriority,ORO_SCHED_RT)
+test.configure
+test.setRedundancyRes(resolution)
+connect("test.cur_cart_pose_in_port","lwr.current_cartesian_pose",cp)
+connect("test.cart_pose_loop_out_port", "lwr.des_cart_pose",cp)
+connect("test.cart_pose_out_port", "lwr.des_cart_pose",cp)
+# connect("test.red_res_out_port","lwr.des_null_space",cp)
+test.start
+
+# var KDL.Rotation rot = KDL.Rotation(0.0,0.0,0.0)
+# var KDL.Vector pos = KDL.Vector(-0.4   ,-0.4   ,0.75 )
+# test.setCartesianPose(pos, rot, 15)
