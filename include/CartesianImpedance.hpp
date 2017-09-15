@@ -6,7 +6,7 @@
 #include <rst-rt/dynamics/JointTorques.hpp>
 #include <kdl/frames.hpp>
 #include <QuinticPolynomial.hpp>
-
+#include <rst-rt/dynamics/JointImpedance.hpp>
 #define DOF_SIZE 7
 
 class CartesianImpedance : public RTT::TaskContext{
@@ -21,7 +21,12 @@ public:
     bool setCartPose(KDL::Vector position, KDL::Rotation orientation, double duration);
     void setRedRes(rstrt::kinematics::JointAngles joint_vals);
 
+    void setCartStiffDamp(Eigen::VectorXf  cart_stiff, Eigen::VectorXf cart_damp);
+
 private:
+    RTT::OutputPort<rstrt::dynamics::JointImpedance> cart_stiffdamp_out_port;
+    rstrt::dynamics::JointImpedance                  cart_stiffdamp_out_data;
+
     RTT::OutputPort<rstrt::kinematics::JointAngles> red_res_out_port;
     rstrt::kinematics::JointAngles                  red_res_out_data;
 

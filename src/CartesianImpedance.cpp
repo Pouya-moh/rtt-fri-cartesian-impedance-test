@@ -17,6 +17,11 @@ CartesianImpedance::CartesianImpedance(std::string const& name) : TaskContext(na
     addOperation("setRedundancyRes", &CartesianImpedance::setRedRes, this, RTT::ClientThread)
             .doc("Set a joint configuration as redundancy resolution scheme for testing.")
             .arg("joint_vals","Desiered rstrt::kinematic::JointAngles configuration");
+
+    addOperation("setCartesianStiffDamp", &CartesianImpedance::setCartStiffDamp, this, RTT::ClientThread)
+            .doc("Set a Cartesian Stiffness and Damping value for testing.")
+            .arg("cart_stiffdamp","Desired cartesian damping and stiffness: 3 translational and 3 rotational");
+
 }
 
 bool CartesianImpedance::setCartPose(KDL::Vector position, KDL::Rotation orientation, double duration){
@@ -45,6 +50,12 @@ bool CartesianImpedance::setCartPose(KDL::Vector position, KDL::Rotation orienta
 
 void CartesianImpedance::setRedRes(rstrt::kinematics::JointAngles joint_vals){
     red_res_out_data = joint_vals;
+}
+
+void CartesianImpedance::setCartStiffDamp(Eigen::VectorXf  cart_stiff, Eigen::VectorXf cart_damp){
+
+    cart_stiffdamp_out_data.stiffness = cart_stiff;
+    cart_stiffdamp_out_data.damping   = cart_damp;
 }
 
 bool CartesianImpedance::configureHook(){
@@ -82,6 +93,7 @@ void CartesianImpedance::updateHook(){
         cart_pose_loop_out_port.write(cart_pose_loop_out_data);
     }
     red_res_out_port.write(red_res_out_data);
+    cart_stiffdamp_out_port.write(cart_stiffdamp_out_data);
 }
 
 void CartesianImpedance::stopHook() {
@@ -91,6 +103,13 @@ void CartesianImpedance::cleanupHook() {
 }
 
 void CartesianImpedance::initializePorts(){
+
+    cart_stiffdamp_out_data = rstrt::dynamics::JointImpedance(6);
+    cart_stiffdamp_out_port.setName("cart_stiffdamp_out_port");
+    cart_stiffdamp_out_port.setDataSample(cart_stiffdamp_out_data);
+    ports()->addPort(cart_stiffdamp_out_port);
+
+
 	cur_cart_pose_in_flow = RTT::NoData;
     cur_cart_pose_in_port.setName("cur_cart_pose_in_port");
     cur_cart_pose_in_data = KDL::Frame();
